@@ -1,28 +1,22 @@
-from openai import OpenAI
-from app.core.config import OPENAI_API_KEY
+from anthropic import Anthropic
+from app.core.config import ANTHROPIC_API_KEY
 
+client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-conversation_history = []
+SYSTEM_PROMPT = """You are a helpful FinTech assistant for a financial platform.
+Help users understand their transactions, budgets, and general financial concepts.
+Be concise and clear. Never give specific investment advice.
+If a question needs a licensed financial advisor, say so."""
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+def generate_response(user_message: str, history: list[dict[str, str]] = []) -> str:
+    """user_message: The latest message from the user
+    history: A list of previous ("role":"user/assistant", "content": message) sent from client. We dont store it in the server anymore."""
+    messages = history + [{"role": "user", "content": user_message}]
+    response = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=1024,
+        system=SYSTEM_PROMPT,
+        messages=messages
 
-def build_messages(user_message:str)-> str:
-    return[{"role":"system","content":system_prompt},*conversation_history,{"role":"user","content":user_message}]
-
-
-def generate_response(user_message: str) -> str:
-    global conversation_history
-
-    messages=build_messages(user_message)
-
-    conversation_history.append({"role": "user", "content": user_message})
-    system_prompt = """You are a helpful assistant.Answer the users question with proper detailing with examples. If you don't know the answer, say you don't know. Always be concise and to the point. Avoid unnecessary information."""
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0.7
     )
-
-    ai_message = response.choices[0].message.content
-    conversation_history.append({"role": "assistant", "content": ai_message})
-    return ai_message
+    return response.content[0].text

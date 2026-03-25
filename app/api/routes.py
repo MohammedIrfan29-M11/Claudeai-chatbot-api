@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from fastapi import APIRouter
+from fastapi import APIRouter,HTTPException
 from app.services.llm_service import generate_response
 
 router = APIRouter()
@@ -12,9 +12,22 @@ def health_check():
 
 class ChatRequest(BaseModel):
     message:str
+    history:list[dict] = []
+class ChatResponse(BaseModel):
+    response:str
+    history:list[dict] = []
 
-@router.post("/chat")
+
+
+@router.post("/chat",response_model=ChatResponse)
+
 def chat(request:ChatRequest):
-    ai_response = generate_response(request.message)
-    return {"response": ai_response}
+    try:
+        response = generate_response(request.message, request.history)
+        updated_history = request.history + [{"role": "user", "content": request.message}, {"role": "assistant", "content": response}]
 
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return ChatResponse(response=response, history=updated_history)
