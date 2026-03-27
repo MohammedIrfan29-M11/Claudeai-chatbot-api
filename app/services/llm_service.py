@@ -1,5 +1,6 @@
 from anthropic import Anthropic
 from app.core.config import ANTHROPIC_API_KEY
+import json
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -50,3 +51,29 @@ def generate_response(user_message: str, history: list[dict[str, str]] = []) -> 
 
     )
     return response.content[0].text
+
+def generate_streaming_response(user_message: str, history:list[dict[str,str]]):
+    """Streaming Response: This is a Python Interpretor
+    Instead of returning one value, it YIELDS multiple values over time.
+    Each yield sends one chunk to the client immediately.
+    The 'yield' keyword is what makes this a generator — remember this."""
+
+    messages = history +[{"role": "user", "content": user_message}]
+
+    with client.messages.stream(
+        model=MODEL,
+        max_tokens=MAX_TOKENS,
+        system=SYSTEM_PROMPT,
+        messages=messages,
+        temperature=TEMPERATURE
+    ) as stream:
+        for event in stream:
+            if hasattr(event, "delta") and hasattr(event.delta, "text"):
+                text_chunk = event.delta.text
+                yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+                    
+
+    final_message= stream.get_final_message()
+    usage=final_message.usage
+
+    yield f"data: {json.dumps({'done': True, 'usage': {'input_tokens': usage.input_tokens,'output_tokens': usage.output_tokens}})}\n\n"
