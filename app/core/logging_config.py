@@ -19,13 +19,13 @@ def setup_logging():
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
 
-    console_formatter = logging.Formatter(fmt='%(asctime)s | %(levelname)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    console_formatter = logging.Formatter(fmt='%(asctime)s | %(levelname)s | %(name)s| %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     console_handler.setFormatter(console_formatter)
 
-    file_handler = logging.FileHandler(f'app_{datetime.now().strftime("%Y-%m-%d")}.log')
+    file_handler = logging.FileHandler(f'logs/app_{datetime.now().strftime("%Y-%m-%d")}.log')
     file_handler.setLevel(logging.INFO)
 
-    file_formatter = logging.Formatter(fmt='%(asctime)s | %(levelname)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    file_formatter = logging.Formatter(fmt='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     file_handler.setFormatter(file_formatter)
 
     logger.addHandler(console_handler)
