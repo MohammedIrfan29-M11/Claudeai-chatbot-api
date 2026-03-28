@@ -1,6 +1,10 @@
 from anthropic import Anthropic
 from app.core.config import ANTHROPIC_API_KEY
 import json
+import logging
+import time
+
+logger = logging.getLogger('app.services.llm_service')
 
 client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -38,42 +42,89 @@ TEMPERATURE=0.7
 
 
 def generate_response(user_message: str, history: list[dict[str, str]] = []) -> str:
-    """user_message: The latest message from the user
-    history: A full conversation history from client
-    returns: Claudes's response as a string"""
-    messages = history + [{"role": "user", "content": user_message}]
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-        temperature=TEMPERATURE
-
+    logger.info(
+        f"Generating response | "
+        f"message_length: {len(user_message)} | "
+        f"history_turns: {len(history)} messages"
     )
-    return response.content[0].text
+    start_time = time.time()
+
+    messages = history + [{"role": "user", "content": user_message}]
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            temperature=TEMPERATURE
+
+        )
+
+        duration = time.time() - start_time
+        reply = response.content[0].text
+
+
+        logger.info(
+            f"Response generated | "
+            f"duration: {duration:.2f}s | "
+            f"input_tokens: {response.usage.input_tokens} | "
+            f"output_tokens: {response.usage.output_tokens} | "
+            f"response_length: {len(reply)}"
+        )
+        return reply
+
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(
+            f"Claude API error | "
+            f"duration: {duration:.2f}s | "
+            f"error: {str(e)}"
+        )
+        raise
+
+
 
 def generate_streaming_response(user_message: str, history:list[dict[str,str]]):
-    """Streaming Response: This is a Python Interpretor
-    Instead of returning one value, it YIELDS multiple values over time.
-    Each yield sends one chunk to the client immediately.
-    The 'yield' keyword is what makes this a generator — remember this."""
+    logger.info(
+        f"Generating streaming response | "
+        f"message_length: {len(user_message)} | "
+        f"history_turns: {len(history)} messages"
+    )
 
-    messages = history +[{"role": "user", "content": user_message}]
+    start_time = time.time()
 
-    with client.messages.stream(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-        temperature=TEMPERATURE
-    ) as stream:
-        for event in stream:
-            if hasattr(event, "delta") and hasattr(event.delta, "text"):
-                text_chunk = event.delta.text
-                yield f"data: {json.dumps({'text': text_chunk})}\n\n"
-                    
+    messages = history + [{"role": "user", "content": user_message}]
 
-    final_message= stream.get_final_message()
-    usage=final_message.usage
+    try:
 
-    yield f"data: {json.dumps({'done': True, 'usage': {'input_tokens': usage.input_tokens,'output_tokens': usage.output_tokens}})}\n\n"
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+            temperature=TEMPERATURE
+        ) as stream:
+            for event in stream:
+                if hasattr(event, "delta") and hasattr(event.delta, "text"):
+                    text_chunk = event.delta.text
+                    yield f"data: {json.dumps({'text': text_chunk})}\n\n"
+    
+
+        final_message = stream.get_final_message()
+        usage = final_message.usage
+        duration = time.time() - start_time
+
+        logger.info(
+            f"Streaming response generated | "
+            f"duration: {duration:.2f}s | "
+            f"input_tokens: {usage.input_tokens} | "
+            f"output_tokens: {usage.output_tokens} | "
+        )
+
+        yield f"data: {json.dumps({'done': True, 'usage': {'input_tokens': usage.input_tokens, 'output_tokens': usage.output_tokens}})}\n\n"
+
+    except Exception as e:
+        logger.error(f"Streaming response error | error: {str(e)}")
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    
