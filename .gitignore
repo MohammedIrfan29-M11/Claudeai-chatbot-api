@@ -17,3 +17,4 @@ venv/
 
 # Logs
 *.loglogs/*.log
+logs/*.log

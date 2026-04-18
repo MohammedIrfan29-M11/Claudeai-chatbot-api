@@ -18,9 +18,12 @@ def setup_logging():
 
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.DEBUG)
+    
 
     console_formatter = logging.Formatter(fmt='%(asctime)s | %(levelname)s | %(name)s| %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     console_handler.setFormatter(console_formatter)
+
+    os.makedirs('logs', exist_ok=True)
 
     file_handler = logging.FileHandler(f'logs/app_{datetime.now().strftime("%Y-%m-%d")}.log')
     file_handler.setLevel(logging.INFO)
